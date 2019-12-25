@@ -2,6 +2,9 @@
 
 import os
 import random
+import warnings
+
+warnings.filterwarnings("ignore")
 
 import numpy as np
 import torch as th
@@ -49,7 +52,7 @@ def main(
         meta_lr=0.003,
         fast_lr=0.5,
         meta_batch_size=32,
-        adaptation_steps=1,
+        adaptation_steps=5,
         num_iterations=60000,
         cuda=True,
         seed=42,

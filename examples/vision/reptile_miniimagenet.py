@@ -157,6 +157,7 @@ def main(args):
 
                 if p2.grad is None:
                     p2.grad = p1_copy-p2_copy
+                    print("really")
                 else:
                     p2.grad += p1_copy-p2_copy
 
@@ -227,8 +228,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--ways', type=int, default=5)
     parser.add_argument('--shots', type=int, default=5)
-    parser.add_argument('--meta-batch-size', type=int, default=32)
-    parser.add_argument('--adaptation-steps', type=int, default=1)
+    parser.add_argument('--meta-batch-size', type=int, default=15)
+    parser.add_argument('--adaptation-steps', type=int, default=5)
     parser.add_argument('--num-iterations', type=int, default=60000)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--meta-lr', type=float, default=0.003)
@@ -237,7 +238,7 @@ if __name__ == '__main__':
     parser.add_argument('--save', type=bool, default=True)
 
     args = parser.parse_args()
-    args.data_dir = 'data/'
+    args.data_dir = '../data/'
 
     if not os.path.exists(args.data_dir):
         os.makedirs(args.data_dir)

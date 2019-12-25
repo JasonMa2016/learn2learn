@@ -245,8 +245,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--ways', type=int, default=5)
     parser.add_argument('--shots', type=int, default=5)
-    parser.add_argument('--meta-batch-size', type=int, default=32)
-    parser.add_argument('--adaptation-steps', type=int, default=1)
+    parser.add_argument('--meta-batch-size', type=int, default=15)
+    parser.add_argument('--adaptation-steps', type=int, default=5)
     parser.add_argument('--num-iterations', type=int, default=60000)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--meta-lr', type=float, default=0.003)
