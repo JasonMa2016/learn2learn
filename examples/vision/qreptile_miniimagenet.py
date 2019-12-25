@@ -226,8 +226,8 @@ def main(args):
             writer.add_scalar('Loss/testing_loss', testing_loss, iteration)
             writer.add_scalar('Accuracy/training_accuracy', training_accuracy, iteration)
             writer.add_scalar('Accuracy/testing_accuracy', testing_accuracy, iteration)
-            with open(os.path.join(save_folder, 'policy-{0}.pt'.format(batch)), 'wb') as f:
-                th.save(maml.state_dict(), f)
+            # with open(os.path.join(save_folder, 'policy-{0}.pt'.format(batch)), 'wb') as f:
+            #     th.save(maml.state_dict(), f)
 
         # Average the accumulated gradients and optimize
         for p in maml.parameters():
@@ -252,8 +252,7 @@ if __name__ == '__main__':
     parser.add_argument('--save', type=bool, default=True)
 
     args = parser.parse_args()
-    args.data_dir = 'data/'
-    args.model_dir = 'model/'
+    args.data_dir = '../data/'
     if not os.path.exists(args.data_dir):
         os.makedirs(args.data_dir)
     if not os.path.exists(args.model_dir):
