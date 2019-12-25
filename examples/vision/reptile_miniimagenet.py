@@ -3,6 +3,9 @@
 import os
 import random
 import json
+import warnings
+
+warnings.filterwarnings("ignore")
 
 import numpy as np
 import torch as th
@@ -235,10 +238,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     args.data_dir = 'data/'
-    args.model_dir = 'model/'
+
     if not os.path.exists(args.data_dir):
         os.makedirs(args.data_dir)
-    if not os.path.exists(args.model_dir):
-        os.makedirs(args.model_dir)
+
     args.output_folder = 'ReptileSeed{}'.format(args.seed)
     main(args)
