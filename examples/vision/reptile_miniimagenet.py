@@ -156,10 +156,10 @@ def main(args):
                 p2_copy = p2.clone().detach()
 
                 if p2.grad is None:
-                    p2.grad = p1_copy-p2_copy
-                    print("really")
+                    p2.grad = -(p1_copy-p2_copy)
+                    # print("really")
                 else:
-                    p2.grad += p1_copy-p2_copy
+                    p2.grad -= p1_copy-p2_copy
 
             meta_train_error += evaluation_error.item()
             meta_train_accuracy += evaluation_accuracy.item()

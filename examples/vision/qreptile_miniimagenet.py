@@ -156,7 +156,7 @@ def main(args):
                                                                ways,
                                                                device)
 
-            lipschitz = 1/meta_lr - 100 # Lipschitz constant
+            lipschitz = 1/meta_lr # Lipschitz constant
             q = 2
             delta_w = []
             delta = []
@@ -176,9 +176,9 @@ def main(args):
 
             for p, g in zip(maml.parameters(), delta):
                 if p.grad is None:
-                    p.grad = g
+                    p.grad = -g
                 else:
-                    p.grad += g
+                    p.grad -= g
 
             meta_train_error += evaluation_error.item()
             meta_train_accuracy += evaluation_accuracy.item()
