@@ -2,6 +2,7 @@
 
 import os
 import random
+import json
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -16,6 +17,7 @@ from torchvision.datasets import ImageFolder
 import learn2learn as l2l
 from learn2learn.data.transforms import NWays, KShots, LoadData, RemapLabels, ConsecutiveLabels
 
+from tensorboardX import SummaryWriter
 
 def accuracy(predictions, targets):
     predictions = predictions.argmax(dim=1).view(targets.shape)
@@ -39,29 +41,44 @@ def fast_adapt(batch, learner, loss, adaptation_steps, shots, ways, device):
         learner.adapt(train_error)
 
     # Evaluate the adapted model
-    predictions = learner(evaluation_data)
-    valid_error = loss(predictions, evaluation_labels)
-    valid_error /= len(evaluation_data)
-    valid_accuracy = accuracy(predictions, evaluation_labels)
+    with th.no_grad():
+        predictions = learner(evaluation_data)
+        valid_error = loss(predictions, evaluation_labels)
+        valid_error /= len(evaluation_data)
+        valid_accuracy = accuracy(predictions, evaluation_labels)
     return valid_error, valid_accuracy
 
 
-def main(
-        ways=5,
-        shots=5,
-        meta_lr=0.003,
-        fast_lr=0.5,
-        meta_batch_size=32,
-        adaptation_steps=5,
-        num_iterations=60000,
-        cuda=True,
-        seed=42,
-):
+def main(args):
+    ways = args.ways
+    shots = args.shots
+    meta_lr = args.meta_lr
+    fast_lr = args.fast_lr
+    meta_batch_size = args.meta_batch_size
+    adaptation_steps = args.adaptation_steps
+    num_iterations = args.num_iterations
+    cuda = args.cuda
+    seed = args.seed
+
+    # logging
+    if args.save:
+        writer = SummaryWriter('{0}'.format(args.data_dir + '/' + args.output_folder))
+
+        save_folder = '{0}'.format(args.data_dir + '/' + args.output_folder)
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+
+        # save the configurations
+        with open(os.path.join(save_folder, 'config.json'), 'w') as f:
+            config = {k: v for (k,v) in vars(args).items() if k != 'device'}
+            json.dump(config, f, indent=2)
+
     random.seed(seed)
     np.random.seed(seed)
     th.manual_seed(seed)
     device = th.device('cpu')
     if cuda and th.cuda.device_count():
+        print("GPU Activated!")
         th.cuda.manual_seed(seed)
         device = th.device('cuda')
 
@@ -121,6 +138,8 @@ def main(
         meta_valid_accuracy = 0.0
         meta_test_error = 0.0
         meta_test_accuracy = 0.0
+
+        min_accuracy = 1
         for task in range(meta_batch_size):
             # Compute meta-training loss
             learner = maml.clone()
@@ -132,24 +151,33 @@ def main(
                                                                shots,
                                                                ways,
                                                                device)
+            evaluation_error.backward()
+            min_accuracy = min(min_accuracy, evaluation_accuracy)
+            # for p1, p2 in zip(learner.parameters(), maml.parameters()):
+            #     p1_copy = p1.clone().detach()
+            #     p2_copy = p2.clone().detach()
+            #
+            #     if p2.grad is None:
+            #         p2.grad = -(p1_copy-p2_copy)
+            #         # print("really")
+            #     else:
+            #         p2.grad -= p1_copy-p2_copy
+            #
+            # meta_train_error += evaluation_error.item()
+            # meta_train_accuracy += evaluation_accuracy.item()
 
-            evaluation_error.backward() # gradient descent w.r.t meta parameters
-
-            meta_train_error += evaluation_error.item()
-            meta_train_accuracy += evaluation_accuracy.item()
-
-            # Compute meta-validation loss
-            learner = maml.clone()
-            batch = valid_tasks.sample()
-            evaluation_error, evaluation_accuracy = fast_adapt(batch,
-                                                               learner,
-                                                               loss,
-                                                               adaptation_steps,
-                                                               shots,
-                                                               ways,
-                                                               device)
-            meta_valid_error += evaluation_error.item()
-            meta_valid_accuracy += evaluation_accuracy.item()
+            # # Compute meta-validation loss
+            # learner = maml.clone()
+            # batch = valid_tasks.sample()
+            # evaluation_error, evaluation_accuracy = fast_adapt(batch,
+            #                                                    learner,
+            #                                                    loss,
+            #                                                    adaptation_steps,
+            #                                                    shots,
+            #                                                    ways,
+            #                                                    device)
+            # meta_valid_error += evaluation_error.item()
+            # meta_valid_accuracy += evaluation_accuracy.item()
 
             # Compute meta-testing loss
             learner = maml.clone()
@@ -164,15 +192,30 @@ def main(
             meta_test_error += evaluation_error.item()
             meta_test_accuracy += evaluation_accuracy.item()
 
+
+        training_loss = meta_train_error / meta_batch_size
+        training_accuracy = meta_train_accuracy / meta_batch_size
+        testing_loss = meta_test_error / meta_batch_size
+        testing_accuracy = meta_test_accuracy / meta_batch_size
+
         # Print some metrics
         print('\n')
         print('Iteration', iteration)
-        print('Meta Train Error', meta_train_error / meta_batch_size)
-        print('Meta Train Accuracy', meta_train_accuracy / meta_batch_size)
-        print('Meta Valid Error', meta_valid_error / meta_batch_size)
-        print('Meta Valid Accuracy', meta_valid_accuracy / meta_batch_size)
-        print('Meta Test Error', meta_test_error / meta_batch_size)
-        print('Meta Test Accuracy', meta_test_accuracy / meta_batch_size)
+        print('Meta Train Error', training_loss)
+        print('Meta Train Accuracy', training_accuracy)
+        # print('Meta Valid Error', meta_valid_error / meta_batch_size)
+        # print('Meta Valid Accuracy', meta_valid_accuracy / meta_batch_size)
+        print('Meta Test Error', testing_loss)
+        print('Meta Test Accuracy', testing_accuracy)
+
+        if args.save:
+            writer.add_scalar('Loss/training_loss', training_loss, iteration)
+            writer.add_scalar('Loss/testing_loss', testing_loss, iteration)
+            writer.add_scalar('Accuracy/training_accuracy', training_accuracy, iteration)
+            writer.add_scalar('Accuracy/testing_accuracy', testing_accuracy, iteration)
+            writer.add_scalar('Accuracy/minimum_accuracy', min_accuracy, iteration)
+            # with open(os.path.join(save_folder, 'policy-{0}.pt'.format(batch)), 'wb') as f:
+            #     th.save(maml.state_dict(), f)
 
         # Average the accumulated gradients and optimize
         for p in maml.parameters():
@@ -180,5 +223,28 @@ def main(
         opt.step()
 
 
+
 if __name__ == '__main__':
-    main()
+    import argparse
+    import os
+    parser = argparse.ArgumentParser(description='Reptile Miniimagenet')
+
+    parser.add_argument('--ways', type=int, default=5)
+    parser.add_argument('--shots', type=int, default=5)
+    parser.add_argument('--meta-batch-size', type=int, default=32)
+    parser.add_argument('--adaptation-steps', type=int, default=5)
+    parser.add_argument('--num-iterations', type=int, default=60000)
+    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--meta-lr', type=float, default=0.003)
+    parser.add_argument('--fast-lr', type=float, default=0.5)
+    parser.add_argument('--cuda', type=bool, default=True)
+    parser.add_argument('--save', type=bool, default=True)
+
+    args = parser.parse_args()
+    args.data_dir = '../data/'
+
+    if not os.path.exists(args.data_dir):
+        os.makedirs(args.data_dir)
+
+    args.output_folder = 'MAMLSeed{}'.format(args.seed)
+    main(args)

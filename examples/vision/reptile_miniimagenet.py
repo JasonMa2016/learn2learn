@@ -139,6 +139,7 @@ def main(args):
         meta_test_error = 0.0
         meta_test_accuracy = 0.0
 
+        min_accuracy = 1
         for task in range(meta_batch_size):
             # Compute meta-training loss
             learner = maml.clone()
@@ -151,6 +152,7 @@ def main(args):
                                                                ways,
                                                                device)
 
+            min_accuracy = min(min_accuracy, evaluation_accuracy)
             for p1, p2 in zip(learner.parameters(), maml.parameters()):
                 p1_copy = p1.clone().detach()
                 p2_copy = p2.clone().detach()
@@ -211,6 +213,7 @@ def main(args):
             writer.add_scalar('Loss/testing_loss', testing_loss, iteration)
             writer.add_scalar('Accuracy/training_accuracy', training_accuracy, iteration)
             writer.add_scalar('Accuracy/testing_accuracy', testing_accuracy, iteration)
+            writer.add_scalar('Accuracy/minimum_accuracy', min_accuracy, iteration)
             # with open(os.path.join(save_folder, 'policy-{0}.pt'.format(batch)), 'wb') as f:
             #     th.save(maml.state_dict(), f)
 
@@ -228,7 +231,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--ways', type=int, default=5)
     parser.add_argument('--shots', type=int, default=5)
-    parser.add_argument('--meta-batch-size', type=int, default=15)
+    parser.add_argument('--meta-batch-size', type=int, default=32)
     parser.add_argument('--adaptation-steps', type=int, default=5)
     parser.add_argument('--num-iterations', type=int, default=60000)
     parser.add_argument('--seed', type=int, default=42)
